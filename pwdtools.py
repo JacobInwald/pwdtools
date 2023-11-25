@@ -1,7 +1,11 @@
+#!/usr/bin/env pythonma
 import sys
 from pwdlib import *
 from os.path import isfile
 
+if len(sys.argv) == 1:
+    sys.exit('No option specified. Please specify an option. Use --help for more information.')
+    
 if sys.argv[1] == '--check' or sys.argv[1] == '-c':
     if len(sys.argv) == 3:
         print("Your password is " + pwd_strength(sys.argv[2]))
@@ -46,3 +50,4 @@ elif sys.argv[1] == '--help':
         --help          Display this help message.
     ''')
     sys.exit()
+

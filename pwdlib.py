@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from passwordmeter import test
 from urllib.request import urlopen
 from os.path import isfile

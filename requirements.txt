@@ -1,0 +1,4 @@
+passwordmeter
+requests
+colorama
+urllib3
