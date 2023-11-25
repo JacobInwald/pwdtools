@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
-from passwordmeter import test
-from urllib.request import urlopen
 from os.path import isfile
 from random import choice,randint
-import re
+import re, tqdm, requests
 from hashlib import md5, sha1, sha256, sha384, sha512
-import requests
 from colorama import init, Fore, Back, Style
 init(autoreset=True)
 from urllib3.exceptions import InsecureRequestWarning
@@ -40,6 +37,17 @@ def md5decryptapi(hashvalue, hashtype):
         return response
     else:
         return False
+
+# Global variables and useful
+API_LIST = [hashtoolkitapi, nitryxgenapi, md5decryptapi]
+HASH_TYPES = {'md5': md5, 'sha1': sha1, 'sha256': sha256, 'sha384': sha384, 'sha512': sha512}
+HASH_LENGTHS = {32: 'md5', 40: 'sha1', 64: 'sha256', 96: 'sha384', 128: 'sha512'}
+
+def get_hash_type(hashvalue:str)->str:
+    """
+    Returns the hash type of a hash.
+    """
+    return HASH_LENGTHS.get(len(hashvalue))
 
 # Main functions
 
@@ -86,8 +94,8 @@ def pwd_generate(online:bool=True, save:bool=False)->str:
         url = 'https://raw.githubusercontent.com/dwyl/english-words/master/words.txt'
         if save:
             with open('words.txt', 'w') as f:
-                f.write(urlopen(url).read().decode('utf-8'))
-        words = urlopen('https://raw.githubusercontent.com/dwyl/english-words/master/words.txt').read().decode('utf-8').split('\n')
+                f.write(requests.get(url).text)
+        words = requests.get(url).text.split('\n')
     else:
         if not isfile('words.txt'):
             return False
@@ -121,47 +129,40 @@ def pwd_check_hash_nosalt(pwd:str)->bool:
     Checks if the passwords unsalted hash has been compromised. Note that this won't work if the password is salted.
     """
     # Initialize APIs
-    apis = [hashtoolkitapi, nitryxgenapi, md5decryptapi]
-    hs = {md5: 'md5', sha1: 'sha1', sha256: 'sha256', sha384: 'sha384', sha512: 'sha512'}
-    secure_hs = {'md5' : True, 'sha1' : True, 'sha256' : True, 'sha384' : True, 'sha512' : True}
+    secure_hs = {k:True for k in HASH_TYPES.keys()}
 
     # Check if password hash is compromised for each hash type
-    for h in hs.keys(): 
-        hashvalue = h(pwd.encode('utf-8')).hexdigest()
-        print("%s check - hash value: %s..." % (hs[h], hashvalue[0:15]))
-        for api in apis:
-            response = api(hashvalue, hs[h])
+    for hash_name in HASH_TYPES.keys(): 
+        hashvalue = HASH_TYPES.get(hash_name)(pwd.encode('utf-8')).hexdigest()
+        print("%s check - hash value: %s..." % (hash_name, hashvalue[0:15]))
+        for api in API_LIST:
+            response = api(hashvalue, hash_name)
             if response:
                 print("\tHash " + Fore.RED + "found\033[0;0m in %s's database for password: %s" % (api.__name__.replace('api', ''), response))
-                secure_hs[hs[h]] = False
+                secure_hs[hash_name] = False
             else:
                 print("\tHash " + Fore.GREEN + "not found\033[0;0m in %s's database." % api.__name__.replace('api', ''))
-                secure_hs[hs[h]] = secure_hs[hs[h]] and True
+                secure_hs[hash_name] = secure_hs[hash_name] and True
 
     for h in secure_hs.keys():
         if not secure_hs[h]:
             print(Style.BRIGHT + Fore.RED + "Your password is compromised in %s." % h)
         else:
             print(Style.BRIGHT + Fore.GREEN + "Your password is not compromised in %s." % h)
-    return secure_hs['md5'] and secure_hs['sha1'] and secure_hs['sha256'] and secure_hs['sha384'] and secure_hs['sha512']
+    return all(secure_hs.values())
 
 
 def bust_hash(hashvalue:str)->bool:
     """
     Checks if the hash has been compromised.
     """
-    # Initialize APIs
-    apis = [hashtoolkitapi, nitryxgenapi, md5decryptapi]
-    hashfunctions = {'md5': md5, 'sha1': sha1, 'sha256': sha256, 'sha384': sha384, 'sha512': sha512}
-    hashlengths = {32: 'md5', 40: 'sha1', 64: 'sha256', 96: 'sha384', 128: 'sha512'}
     
-    hashtype = hashlengths.get(len(hashvalue))
-    h = hashfunctions.get(hashtype)
+    hashtype = get_hash_type(hashvalue)
     compromised = False
 
     # Check if password hash is compromised for each hash type
     print("%s check - hash value: %s..." % (hashtype, hashvalue[0:15]))
-    for api in apis:
+    for api in API_LIST:
         response = api(hashvalue, hashtype)
         if response:
             print("\tHash " + Fore.RED + "found\033[0;0m in %s's database, translated to: %s" % (api.__name__.replace('api', ''), response))
@@ -173,16 +174,98 @@ def bust_hash(hashvalue:str)->bool:
         print(Style.BRIGHT + Fore.RED + "Hash is compromised.")
     else:
         print(Style.BRIGHT + Fore.GREEN + "Hash is not compromised.")
-    return compromised
+    return response
 
 
 def to_hash(v:str, method:str)->str:
     """
     Returns the hash of a string.
     """
-    hashfunctions = {'md5': md5, 'sha1': sha1, 'sha256': sha256, 'sha384': sha384, 'sha512': sha512}
-    h = hashfunctions.get(method)
+    h = HASH_TYPES.get(method)
     if h:
         return h(v.encode('utf-8')).hexdigest()
     else:
         return False
+
+
+def dictionary_attack(hash:str,hash_type:str)->bool:
+    """
+    Attempts to crack the password using a dictionary attack.
+    """
+    print("Loading separate dictionaries...")
+    dictionary_urls = { # Common 10M passwords}
+                        'top_10_mil'  : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/xato-net-10-million-passwords.txt",
+                        'bible_1'     : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/BiblePass/BiblePass_part01.txt",
+                        'bible_2'     : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/BiblePass/BiblePass_part02.txt",
+                        'bible_3'     : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/BiblePass/BiblePass_part03.txt",
+                        'bible_4'     : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/BiblePass/BiblePass_part04.txt",
+                        'bible_5'     : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/BiblePass/BiblePass_part05.txt",
+                        'bible_6'     : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/BiblePass/BiblePass_part06.txt",
+                        'bible_7'     : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/BiblePass/BiblePass_part07.txt",
+                        'bible_8'     : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/BiblePass/BiblePass_part08.txt",
+                        'bible_9'     : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/BiblePass/BiblePass_part09.txt",
+                        'bible_10'    : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/BiblePass/BiblePass_part10.txt",
+                        'bible_11'    : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/BiblePass/BiblePass_part11.txt",
+                        'bible_12'    : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/BiblePass/BiblePass_part12.txt",
+                        'bible_13'    : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/BiblePass/BiblePass_part13.txt",
+                        'bible_14'    : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/BiblePass/BiblePass_part14.txt",
+                        'bible_15'    : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/BiblePass/BiblePass_part15.txt",
+                        'bible_16'    : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/BiblePass/BiblePass_part16.txt",
+                        'bible_17'    : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/BiblePass/BiblePass_part17.txt",
+                        'fabian'      : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Honeypot-Captures/multiplesources-passwords-fabian-fingerle.de.txt",
+                        'nordvpn'     : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Leaked-Databases/NordVPN.txt",
+                        'google'      : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Leaked-Databases/alleged-gmail-passwords.txt",
+                        'faithwriter' : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Leaked-Databases/faithwriters.txt",
+                        'fortinet'    : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Leaked-Databases/fortinet-2021_passwords.txt",
+                        'hotmail'     : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Leaked-Databases/hotmail.txt",
+                        'myspace'     : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Leaked-Databases/myspace.txt",
+                        'md5uk'       : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Leaked-Databases/md5decryptor-uk.txt",
+                        '1337'        : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Permutations/1337speak.txt", 
+                        'p@55w0rd'    : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Permutations/korelogic-password.txt",
+                        }
+    
+    # Get hash function
+    h = HASH_TYPES.get(hash_type)
+    if not h: return False
+
+    # Check if rockyou.txt is present and use that to begin with
+    if isfile('rockyou.txt'):
+        with open('rockyou.txt', 'r', encoding='latin-1') as f:
+            rockyou = f.read().split('\n')
+        for w in rockyou:
+            if h(w.encode('utf-8')).hexdigest() == hash:
+                return w
+    
+    # Start dictionary attack
+    print("Starting Dictionary Attack...")
+    for name, url in tqdm.tqdm(dictionary_urls.items()):
+        dictionary = requests.get(url).text.split('\n')
+        for w in dictionary:
+            if h(w.encode('utf-8')).hexdigest() == hash:
+                return w
+            
+    return False
+
+
+def pwd_crack(hash:str, timeout_in_secs:int=30)->bool:
+    """
+    Attempts to crack the password.
+    """
+    hash_type = get_hash_type(hash)
+    if not hash_type:
+        return False
+    
+    # Dictionary attack
+    dictionary = dictionary_attack(hash, hash_type)
+    if dictionary:
+        return dictionary
+    
+    # Attempt to bust hash
+    busted = bust_hash(hash)
+    if busted:
+        return busted
+    # Brute force attack
+
+    return False
+
+print(pwd_crack(to_hash('ISamuelTwenty:TWOZERO@@!', 'md5')))

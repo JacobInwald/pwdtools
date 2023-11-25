@@ -1,4 +1,2 @@
-passwordmeter
 requests
-colorama
-urllib3
+tqdm

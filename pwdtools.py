@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import sys
 from pwdlib.pwdlib import *
 from os.path import isfile
@@ -51,3 +52,8 @@ elif sys.argv[1] == '--help':
     ''')
     sys.exit()
 
+
+# TODO: Add support for password cracking
+# TODO: Add encryption/decrpytion support
+# TODO: ADD support for encrypting a file with a password
+# TODO: Add support for public key generation
