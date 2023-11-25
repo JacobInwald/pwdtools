@@ -73,3 +73,5 @@ def pwd_generate(online:bool=True, save:bool=False)->str:
         pwd += choice(['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '_', '+', '[', ']', '{', '}', ';', ':', ',', '.', '/', '?', '|'])
 
     return pwd
+
+
