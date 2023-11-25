@@ -1,11 +1,11 @@
-#!/usr/bin/env pythonma
+#!/usr/bin/env python3
 import sys
-from pwdlib import *
+from pwdlib.pwdlib import *
 from os.path import isfile
 
 if len(sys.argv) == 1:
     sys.exit('No option specified. Please specify an option. Use --help for more information.')
-    
+
 if sys.argv[1] == '--check' or sys.argv[1] == '-c':
     if len(sys.argv) == 3:
         print("Your password is " + pwd_strength(sys.argv[2]))
@@ -34,7 +34,7 @@ elif sys.argv[1] == '--hash' or sys.argv[1] == '-h':
         else:
             print('Invalid hash type. Supported hash types are: md5, sha1, sha256, sha384, sha512.')
     else:
-        sys.exit('No hash file given. Please specify a hash file.')
+        sys.exit('Wrong number of arguments. Correct usage: pwdtools --hash <string> <hash type>')
 elif sys.argv[1] == '--help':
     print('''
     Usage: pwdtools [OPTION] [PARAMETERS]
