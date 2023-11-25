@@ -35,7 +35,7 @@ pwdtools --busthash <hash>
 Run `pwdtools --help` for more information
 
 ## Contributing
-Contributions are welcome. Please fork the project and create a pull request with your changes.
+Contributions are welcome, but keep in mind this is just a small project so just shoot me a message first. Please fork the project and create a pull request with your changes.
 
 ## License
 This project will be licensed under the terms of the MIT license once I figure out how to do that.
