@@ -1,3 +1,7 @@
+from passwordmeter import test
+from urllib.request import urlopen
+from os.path import isfile
+from random import choice,randint
 import re
 
 def pwd_strength(pwd:str)->str:
@@ -31,9 +35,41 @@ def pwd_strength(pwd:str)->str:
     return strengths.get(min(pwd_grades.values()))
 
 
-def pwd_generate()->str:
+def pwd_generate(online:bool=True, save:bool=False)->str:
     """
     Generate a password.
     """
-    pass
+    # Get word list from words.txt or github
+    if online:
+        print('Downloading words.txt...')
+        url = 'https://raw.githubusercontent.com/dwyl/english-words/master/words.txt'
+        if save:
+            with open('words.txt', 'w') as f:
+                f.write(urlopen(url).read().decode('utf-8'))
+        words = urlopen('https://raw.githubusercontent.com/dwyl/english-words/master/words.txt').read().decode('utf-8').split('\n')
+    else:
+        if not isfile('words.txt'):
+            return False
+        else:
+            with open('words.txt', 'r') as f:
+                words = f.read().split('\n')
 
+    # Generate password
+    words = [w for w in words if re.match('^[a-z]+$', w) and 6 >= len(w) >= 4]
+    pwd = ''
+    for i in range(randint(4,6)):
+        w = choice(words) # choose random word
+        if not randint(0,2): # randomly remove vowels and replace with numbers
+            w = re.sub('a', '4', w)
+            w = re.sub('i', '1', w)
+            w = re.sub('e', '3', w)
+            w = re.sub('o', '0', w)
+        # randomly capitalize letters
+        nw = ''
+        w = [c.upper() if not randint(0,5) else c for c in w]
+        for c in w: nw += c
+        pwd += nw
+        # add a random special character to the end of the word
+        pwd += choice(['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '_', '+', '[', ']', '{', '}', ';', ':', ',', '.', '/', '?', '|'])
+
+    return pwd
