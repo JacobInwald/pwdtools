@@ -29,3 +29,11 @@ def pwd_strength(pwd:str)->str:
         if numberrange >= g['numberrange']:
             pwd_grades['numberrange'] = g['name']
     return strengths.get(min(pwd_grades.values()))
+
+
+def pwd_generate()->str:
+    """
+    Generate a password.
+    """
+    pass
+
