@@ -1,15 +1,25 @@
 #!/usr/bin/env python3
+
+import re, tqdm, requests, time
 from os.path import isfile
 from random import choice,randint
-import re, tqdm, requests, time
 from hashlib import md5, sha1, sha256, sha384, sha512
 from colorama import init, Fore, Back, Style
-init(autoreset=True)
 from urllib3.exceptions import InsecureRequestWarning
-requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
-from itertools import permutations, combinations
+from itertools import permutations
+from nltk.corpus import words
+import nltk
 
-# API functions
+# ! Global Setup
+nltk.download('words')
+init(autoreset=True)
+requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
+API_LIST = [None, None, None]
+HASH_TYPES = {'md5': md5, 'sha1': sha1, 'sha256': sha256, 'sha384': sha384, 'sha512': sha512}
+HASH_LENGTHS = {32: 'md5', 40: 'sha1', 64: 'sha256', 96: 'sha384', 128: 'sha512'}
+DATA_PATH = 'data/'
+
+# ! API functions
 
 def hashtoolkitapi(hashvalue, hashtype):
     """API for https://hashtoolkit.com/ which is a database of md5, sha1, sha256, sha384, and sha512 hashes."""
@@ -38,11 +48,8 @@ def md5decryptapi(hashvalue, hashtype):
         return response
     else:
         return False
-
-# Global variables and useful
+    
 API_LIST = [hashtoolkitapi, nitryxgenapi, md5decryptapi]
-HASH_TYPES = {'md5': md5, 'sha1': sha1, 'sha256': sha256, 'sha384': sha384, 'sha512': sha512}
-HASH_LENGTHS = {32: 'md5', 40: 'sha1', 64: 'sha256', 96: 'sha384', 128: 'sha512'}
 
 def get_hash_type(hashvalue:str)->str:
     """
@@ -50,7 +57,8 @@ def get_hash_type(hashvalue:str)->str:
     """
     return HASH_LENGTHS.get(len(hashvalue))
 
-# Main functions
+
+# ! Main functions
 
 def pwd_strength(pwd:str)->str:
     """
@@ -85,24 +93,12 @@ def pwd_strength(pwd:str)->str:
     return strengths.get(min(pwd_grades.values()))
 
 
-def pwd_generate(online:bool=True, save:bool=False)->str:
+def pwd_generate()->str:
     """
     Generate a password.
     """
-    # Get word list from words.txt or github
-    if online:
-        print('Downloading words.txt...')
-        url = 'https://raw.githubusercontent.com/dwyl/english-words/master/words.txt'
-        if save:
-            with open('words.txt', 'w') as f:
-                f.write(requests.get(url).text)
-        words = requests.get(url).text.split('\n')
-    else:
-        if not isfile('words.txt'):
-            return False
-        else:
-            with open('words.txt', 'r') as f:
-                words = f.read().split('\n')
+    # Gets the norvig dictionary
+    words = create_english_corpus()
 
     # Generate password
     words = [w for w in words if re.match('^[a-z]+$', w) and 6 >= len(w) >= 4]
@@ -126,7 +122,6 @@ def pwd_generate(online:bool=True, save:bool=False)->str:
 
 
 # ! Hash related stuff
-
 
 def pwd_search_online(pwd:str)->bool:
     """
@@ -192,15 +187,14 @@ def to_hash(v:str, method:str)->str:
         return False
 
 
-# ! Attacks
-
+# ! Attacks 
 
 def dictionary_attack(hash:str,hash_type:str)->bool:
     """
     Attempts to crack the password using a dictionary attack.
     """
-    print("Loading separate dictionaries...")
-    dictionary_urls = { # Common 10M passwords}
+    print("Loading dictionaries...")
+    dictionary_urls = { # Common passwords and leaked passwords from the SecLists repository
                         'top_10_mil'  : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/xato-net-10-million-passwords.txt",
                         'bible_1'     : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/BiblePass/BiblePass_part01.txt",
                         'bible_2'     : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/BiblePass/BiblePass_part02.txt",
@@ -236,6 +230,7 @@ def dictionary_attack(hash:str,hash_type:str)->bool:
     # Get hash function
     h = HASH_TYPES.get(hash_type)
     if not h: return False
+
     # Check if rockyou.txt is present and use that to begin with
     if isfile('rockyou.txt'):
         with open('rockyou.txt', 'r', encoding='latin-1') as f:
@@ -283,37 +278,64 @@ def permute(word:str, n_size:int=3, s_size:int=1)->list:
     return words
 
 
-def permuted_dictionary_attack(hash:str,hash_type:str, n_size:int=3, s_size:int=1)->bool:
+def create_english_corpus(save:bool=False, regenerate:bool=False):
     """
-    Attempts to crack the password using a permuted dictionary attack.
+    Creates a corpus of English words at least 4 letters long.
     """
-    print("Loading Databases...")
-    dictionary_urls = { 'norvig' : 'http://norvig.com/ngrams/count_1w.txt',
-                        'wiki' : 'https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Wikipedia/wikipedia_en_vowels_no_compounds_top-1000000.txt',
-                        'norvig-scrab' : 'http://norvig.com/ngrams/word.list',
+    # Check if corpus exists
+    if isfile(DATA_PATH+'corpus.txt') and not regenerate:
+        with open(DATA_PATH+'corpus.txt', 'r') as f:
+            return f.read().split('\n')
+
+    print("Downloading sources...")
+    dictionary_urls = { 'norvig'        : 'http://norvig.com/ngrams/count_1w.txt',
+                        'wiki'          : 'https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Wikipedia/wikipedia_en_vowels_no_compounds_top-1000000.txt',
+                        'norvig-scrab2' : 'http://norvig.com/ngrams/sowpods.txt',
                         }
-    dictionaries = {}
-    
+    dictionaries = {'nltk': words.words()}
+
     for name, url in tqdm.tqdm(dictionary_urls.items()):
         d = requests.get(url).text.split('\n')
         if name == 'norvig':
             d = [w.split('\t')[0].strip() for w in d]
         dictionaries[name] = d
     
+    print("Compiling corpus...")
+    corpus = set()
+    # Remove words that are less than 4 letters long or contain non-alphabetic characters
+    for d in dictionaries.values():
+        for w in tqdm.tqdm(d):
+            if len(w) < 4 or \
+                not re.match('^[a-zA-Z]+$', w):
+                continue
+            corpus.add(w.lower())
+    corpus = list(corpus)
+
+    if save:
+        with open(DATA_PATH+'corpus.txt', 'w') as f:
+            f.write(''.join([w + '\n' for w in corpus]))
+    
+    print("Corpus created, size: %d words." % len(corpus))
+
+    return corpus
+
+
+def permuted_dictionary_attack(hash:str,hash_type:str, n_size:int=3, s_size:int=1)->bool:
+    """
+    Attempts to crack the password using a permuted dictionary attack.
+    """
+    corpus = create_english_corpus()
+    
     # Get hash function
     h = HASH_TYPES.get(hash_type)
     if not h: return False
     
     # Start dictionary attack
-    print("Starting Dictionary Attack...")
-    i = 1
-    for name, dictionary in dictionaries.items():
-        print("Starting attack using the %s dictionary, %d dictionaries left after this." % (name, len(dictionaries) - i))
-        i+=1
-        for w in tqdm.tqdm(dictionary):
-            for w in permute(w, n_size, s_size):
-                if h(w.encode('utf-8')).hexdigest() == hash:
-                    return w
+    print("Starting attack using corpus...")
+    for w in tqdm.tqdm(corpus):
+        for w in permute(w, n_size, s_size):
+            if h(w.encode('utf-8')).hexdigest() == hash:
+                return w
             
     return False
 
@@ -322,7 +344,7 @@ def brute_force_attack(hash:str,hash_type:str):
     pass
 
 
-def pwd_crack(hash:str, timeout_in_secs:int=1000)->bool:
+def pwd_crack(hash:str)->bool:
     """
     Attempts to crack the hash to get the password.
     """
@@ -340,16 +362,17 @@ def pwd_crack(hash:str, timeout_in_secs:int=1000)->bool:
     # Dictionary attack
     dictionary = dictionary_attack(hash, hash_type)
     if dictionary:
-        print(Style.BRIGHT + Fore.GREEN + "Dictionary Attack Successful Password is: %s" % dictionary)
+        print(Style.BRIGHT + Fore.GREEN + "Dictionary Attack Successful. Password is: %s" % dictionary)
         return dictionary
     print(Style.BRIGHT + Fore.RED + "Dictionary Attack Failed. Attempting a permuted dictionary attack...")
 
-    # Permuted dictionary attack this can take 12 hours or more
-    dictionary = permuted_dictionary_attack(hash, hash_type)
-    if dictionary:
-        print(Style.BRIGHT + Fore.GREEN + "Permutation Attack Successful Password is: %s" % dictionary)
-        return dictionary
-    print(Style.BRIGHT + Fore.RED + "Permutation Attack Failed. Attempting brute force attack...")
+
+    # Permuted dictionary attack
+    perms = permuted_dictionary_attack(hash, hash_type)
+    if perms:
+        print(Style.BRIGHT + Fore.GREEN + "Permuted Dictionary Attack Successful. Password is: %s" % perms)
+        return perms
+    print(Style.BRIGHT + Fore.RED + "Permuted Dictionary Attack Failed. Attempting a brute force attack...")
 
     # TODO: brute force attack
 

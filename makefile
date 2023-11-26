@@ -3,7 +3,7 @@ DESTDIR ?= /usr/local/bin
 
 install:
 	@echo "Installing pwdtools..."
-	@pip3 install -r requirements.txt
+	@pip3 install -r requirements.txt	
 	@sudo mkdir -p $(DESTDIR)/pwdlib
 	@sudo cp pwdtools.py $(DESTDIR)/pwdtools
 	@sudo cp -r pwdlib $(DESTDIR)
