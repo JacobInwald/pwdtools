@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import re, tqdm, requests, time
+import re, tqdm, requests
 from os.path import isfile
 from random import choice,randint
 from hashlib import md5, sha1, sha256, sha384, sha512
@@ -60,7 +60,7 @@ def get_hash_type(hashvalue:str)->str:
     return HASH_LENGTHS.get(len(hashvalue))
 
 
-# ! Main functions
+# ! Password functions
 
 def pwd_strength(pwd:str)->str:
     """
@@ -251,13 +251,13 @@ def dictionary_attack(hash:str,hash_type:str)->bool:
     return False
 
 
-def permute(word:str, n_size:int=3, s_size:int=1)->list:
+def permute(word:str, n_size:int=4, s_size:int=2)->list:
     """
     Returns a list of permutations of a password i.e. adding numbers or special characters to the end and 1337 speak.
     """
     assert n_size >= 1 and s_size >= 1, "n_size and s_size must be greater than or equal to 1."
 
-    n = [str(i+1) for i in range(9)]
+    n = [str(i) for i in range(10)]
     n_perms = [''] + [''.join(j) for i in range(1,n_size + 1) for j in  permutations(n, i)] + \
               [''.join([j for i in range(1,x)]) for x in range(3,n_size+2) for j in n]
     special_chars = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '?']
@@ -371,7 +371,6 @@ def pwd_crack(hash:str)->bool:
         print(Style.BRIGHT + Fore.GREEN + "Dictionary Attack Successful. Password is: %s" % dictionary)
         return dictionary
     print(Style.BRIGHT + Fore.RED + "Dictionary Attack Failed. Attempting a permuted dictionary attack...")
-
 
     # Permuted dictionary attack
     perms = permuted_dictionary_attack(hash, hash_type)
