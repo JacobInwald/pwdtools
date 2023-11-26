@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 from os.path import isfile
 from random import choice,randint
-import re, tqdm, requests
+import re, tqdm, requests, time
 from hashlib import md5, sha1, sha256, sha384, sha512
 from colorama import init, Fore, Back, Style
 init(autoreset=True)
 from urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
+from itertools import permutations, combinations
 
 # API functions
 
@@ -124,7 +125,10 @@ def pwd_generate(online:bool=True, save:bool=False)->str:
     return pwd
 
 
-def pwd_check_hash_nosalt(pwd:str)->bool:
+# ! Hash related stuff
+
+
+def pwd_search_online(pwd:str)->bool:
     """
     Checks if the passwords unsalted hash has been compromised. Note that this won't work if the password is salted.
     """
@@ -152,7 +156,7 @@ def pwd_check_hash_nosalt(pwd:str)->bool:
     return all(secure_hs.values())
 
 
-def bust_hash(hashvalue:str)->bool:
+def search_hash_online(hashvalue:str)->bool:
     """
     Checks if the hash has been compromised.
     """
@@ -186,6 +190,9 @@ def to_hash(v:str, method:str)->str:
         return h(v.encode('utf-8')).hexdigest()
     else:
         return False
+
+
+# ! Attacks
 
 
 def dictionary_attack(hash:str,hash_type:str)->bool:
@@ -224,10 +231,11 @@ def dictionary_attack(hash:str,hash_type:str)->bool:
                         'p@55w0rd'    : "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Permutations/korelogic-password.txt",
                         }
     
+    dictionaries = {k : requests.get(v).text.split('\n') for k,v in tqdm.tqdm(dictionary_urls.items())}
+
     # Get hash function
     h = HASH_TYPES.get(hash_type)
     if not h: return False
-
     # Check if rockyou.txt is present and use that to begin with
     if isfile('rockyou.txt'):
         with open('rockyou.txt', 'r', encoding='latin-1') as f:
@@ -238,8 +246,7 @@ def dictionary_attack(hash:str,hash_type:str)->bool:
     
     # Start dictionary attack
     print("Starting Dictionary Attack...")
-    for name, url in tqdm.tqdm(dictionary_urls.items()):
-        dictionary = requests.get(url).text.split('\n')
+    for dictionary in tqdm.tqdm(dictionaries.values()):
         for w in dictionary:
             if h(w.encode('utf-8')).hexdigest() == hash:
                 return w
@@ -247,25 +254,103 @@ def dictionary_attack(hash:str,hash_type:str)->bool:
     return False
 
 
-def pwd_crack(hash:str, timeout_in_secs:int=30)->bool:
+def permute(word:str, n_size:int=3, s_size:int=1)->list:
     """
-    Attempts to crack the password.
+    Returns a list of permutations of a password i.e. adding numbers or special characters to the end and 1337 speak.
+    """
+    assert n_size >= 1 and s_size >= 1, "n_size and s_size must be greater than or equal to 1."
+
+    n = [str(i+1) for i in range(9)]
+    n_perms = [''] + [''.join(j) for i in range(1,n_size + 1) for j in  permutations(n, i)] + \
+              [''.join([j for i in range(1,x)]) for x in range(3,n_size+2) for j in n]
+    special_chars = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '?']
+    special_perms = [''] + [''.join(j) for i in range(1,s_size+1) for j in  permutations(special_chars, i)] + \
+                    [''.join([j for i in range(1,x)]) for x in range(3,s_size+2) for j in special_chars]
+    
+    suffixes = [''.join([n_suf, s_suf]) for n_suf in n_perms for s_suf in special_perms]
+    suffixes += [''.join([s_suf, n_suf]) for n_suf in n_perms for s_suf in special_perms]
+    
+    words = []
+    for suf in suffixes:
+        words.append(word + suf)
+        words.append(suf + word)
+        if word[0].isupper():
+            words.append(word[0].lower() + word[1:] + suf)
+            words.append(suf + word[0].lower() + word[1:])
+        else:
+            words.append(word.capitalize() + suf)
+            words.append(suf + word.capitalize())
+    return words
+
+
+def permuted_dictionary_attack(hash:str,hash_type:str, n_size:int=3, s_size:int=1)->bool:
+    """
+    Attempts to crack the password using a permuted dictionary attack.
+    """
+    print("Loading Databases...")
+    dictionary_urls = { 'norvig' : 'http://norvig.com/ngrams/count_1w.txt',
+                        'wiki' : 'https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Wikipedia/wikipedia_en_vowels_no_compounds_top-1000000.txt',
+                        'norvig-scrab' : 'http://norvig.com/ngrams/word.list',
+                        }
+    dictionaries = {}
+    
+    for name, url in tqdm.tqdm(dictionary_urls.items()):
+        d = requests.get(url).text.split('\n')
+        if name == 'norvig':
+            d = [w.split('\t')[0].strip() for w in d]
+        dictionaries[name] = d
+    
+    # Get hash function
+    h = HASH_TYPES.get(hash_type)
+    if not h: return False
+    
+    # Start dictionary attack
+    print("Starting Dictionary Attack...")
+    i = 1
+    for name, dictionary in dictionaries.items():
+        print("Starting attack using the %s dictionary, %d dictionaries left after this." % (name, len(dictionaries) - i))
+        i+=1
+        for w in tqdm.tqdm(dictionary):
+            for w in permute(w, n_size, s_size):
+                if h(w.encode('utf-8')).hexdigest() == hash:
+                    return w
+            
+    return False
+
+
+def brute_force_attack(hash:str,hash_type:str):
+    pass
+
+
+def pwd_crack(hash:str, timeout_in_secs:int=1000)->bool:
+    """
+    Attempts to crack the hash to get the password.
     """
     hash_type = get_hash_type(hash)
     if not hash_type:
         return False
     
+    # Attempt to bust hash
+    busted = search_hash_online(hash)
+    if busted:
+        print(Style.BRIGHT + Fore.GREEN + "Online Hash Busting Successful. Password is: %s" % busted)
+        return busted
+    print(Style.BRIGHT + Fore.RED + "Hash not found in online database. Attempting dictionary attack...")
+
     # Dictionary attack
     dictionary = dictionary_attack(hash, hash_type)
     if dictionary:
+        print(Style.BRIGHT + Fore.GREEN + "Dictionary Attack Successful Password is: %s" % dictionary)
         return dictionary
-    
-    # Attempt to bust hash
-    busted = bust_hash(hash)
-    if busted:
-        return busted
-    # Brute force attack
+    print(Style.BRIGHT + Fore.RED + "Dictionary Attack Failed. Attempting a permuted dictionary attack...")
+
+    # Permuted dictionary attack this can take 12 hours or more
+    dictionary = permuted_dictionary_attack(hash, hash_type)
+    if dictionary:
+        print(Style.BRIGHT + Fore.GREEN + "Permutation Attack Successful Password is: %s" % dictionary)
+        return dictionary
+    print(Style.BRIGHT + Fore.RED + "Permutation Attack Failed. Attempting brute force attack...")
+
+    # TODO: brute force attack
 
     return False
-
-print(pwd_crack(to_hash('ISamuelTwenty:TWOZERO@@!', 'md5')))

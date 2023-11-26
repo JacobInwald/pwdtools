@@ -1,3 +1,5 @@
 rockyou.txt
 rockyou.txt.tar.gz
 .DS_Store
+__pycache__
+pwdlib/__pycache__
