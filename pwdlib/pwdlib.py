@@ -11,13 +11,15 @@ from nltk.corpus import words
 import nltk
 
 # ! Global Setup
-nltk.download('words')
+if words.words() == []:
+    print("Downloading nltk words...")
+    nltk.download('words')
 init(autoreset=True)
 requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 API_LIST = [None, None, None]
 HASH_TYPES = {'md5': md5, 'sha1': sha1, 'sha256': sha256, 'sha384': sha384, 'sha512': sha512}
 HASH_LENGTHS = {32: 'md5', 40: 'sha1', 64: 'sha256', 96: 'sha384', 128: 'sha512'}
-DATA_PATH = 'data/'
+DATA_PATH = 'pwdlib/data/'
 
 # ! API functions
 
@@ -116,7 +118,7 @@ def pwd_generate()->str:
         for c in w: nw += c
         pwd += nw
         # add a random special character to the end of the word
-        pwd += choice(['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '_', '+', '[', ']', '{', '}', ';', ':', ',', '.', '/', '?', '|'])
+        pwd += choice(['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '_', '+'])
 
     return pwd
 
@@ -278,14 +280,18 @@ def permute(word:str, n_size:int=3, s_size:int=1)->list:
     return words
 
 
-def create_english_corpus(save:bool=False, regenerate:bool=False):
+def create_english_corpus(save:bool=True, regenerate:bool=False):
     """
     Creates a corpus of English words at least 4 letters long.
     """
     # Check if corpus exists
     if isfile(DATA_PATH+'corpus.txt') and not regenerate:
         with open(DATA_PATH+'corpus.txt', 'r') as f:
-            return f.read().split('\n')
+            data = f.read().split('\n')
+            if len(data) > 10000:
+                return data
+            else:
+                print("Corpus is too small, regenerating...")
 
     print("Downloading sources...")
     dictionary_urls = { 'norvig'        : 'http://norvig.com/ngrams/count_1w.txt',
