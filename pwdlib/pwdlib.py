@@ -251,21 +251,10 @@ def dictionary_attack(hash:str,hash_type:str)->bool:
     return False
 
 
-def permute(word:str, n_size:int=4, s_size:int=2)->list:
+def permute(word:str,suffixes:list)->list:
     """
     Returns a list of permutations of a password i.e. adding numbers or special characters to the end and 1337 speak.
     """
-    assert n_size >= 1 and s_size >= 1, "n_size and s_size must be greater than or equal to 1."
-
-    n = [str(i) for i in range(10)]
-    n_perms = [''] + [''.join(j) for i in range(1,n_size + 1) for j in  permutations(n, i)] + \
-              [''.join([j for i in range(1,x)]) for x in range(3,n_size+2) for j in n]
-    special_chars = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '?']
-    special_perms = [''] + [''.join(j) for i in range(1,s_size+1) for j in  permutations(special_chars, i)] + \
-                    [''.join([j for i in range(1,x)]) for x in range(3,s_size+2) for j in special_chars]
-    
-    suffixes = [''.join([n_suf, s_suf]) for n_suf in n_perms for s_suf in special_perms]
-    suffixes += [''.join([s_suf, n_suf]) for n_suf in n_perms for s_suf in special_perms]
     
     words = []
     for suf in suffixes:
@@ -278,6 +267,25 @@ def permute(word:str, n_size:int=4, s_size:int=2)->list:
             words.append(word.capitalize() + suf)
             words.append(suf + word.capitalize())
     return words
+
+
+def gen_suffixes(n_size:int=3, s_size:int=1)->list:
+    """
+    Generates a list of suffixes to be used for a permuted dictionary attack.
+    """
+    assert n_size >= 1 and s_size >= 1, "n_size and s_size must be greater than or equal to 1."
+
+    n = [str(i) for i in range(10)]
+    n_perms = [''] + [''.join(j) for i in range(1,n_size + 1) for j in  permutations(n, i)] + \
+              [''.join([j for i in range(1,x)]) for x in range(3,n_size+2) for j in n]
+    special_chars = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '?']
+    special_perms = [''] + [''.join(j) for i in range(1,s_size+1) for j in  permutations(special_chars, i)] + \
+                    [''.join([j for i in range(1,x)]) for x in range(3,s_size+2) for j in special_chars]
+    
+    suffixes = [''.join([n_suf, s_suf]) for n_suf in n_perms for s_suf in special_perms]
+    suffixes += [''.join([s_suf, n_suf]) for n_suf in n_perms for s_suf in special_perms]
+
+    return suffixes
 
 
 def create_english_corpus(save:bool=True, regenerate:bool=False):
@@ -331,6 +339,7 @@ def permuted_dictionary_attack(hash:str,hash_type:str, n_size:int=3, s_size:int=
     Attempts to crack the password using a permuted dictionary attack.
     """
     corpus = create_english_corpus()
+    suffixes = gen_suffixes()
     
     # Get hash function
     h = HASH_TYPES.get(hash_type)
@@ -339,7 +348,7 @@ def permuted_dictionary_attack(hash:str,hash_type:str, n_size:int=3, s_size:int=
     # Start dictionary attack
     print("Starting attack using corpus...")
     for w in tqdm.tqdm(corpus):
-        for w in permute(w, n_size, s_size):
+        for w in permute(w, suffixes):
             if h(w.encode('utf-8')).hexdigest() == hash:
                 return w
             
