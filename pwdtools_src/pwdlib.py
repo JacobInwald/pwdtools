@@ -9,6 +9,7 @@ from urllib3.exceptions import InsecureRequestWarning
 from itertools import permutations
 from nltk.corpus import words
 import nltk, math
+
 # ! Global Setup
 if words.words() == []:
     print("Downloading nltk words...")
@@ -18,7 +19,7 @@ requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 API_LIST = [None, None, None]
 HASH_TYPES = {'md5': md5, 'sha1': sha1, 'sha256': sha256, 'sha384': sha384, 'sha512': sha512}
 HASH_LENGTHS = {32: 'md5', 40: 'sha1', 64: 'sha256', 96: 'sha384', 128: 'sha512'}
-DATA_PATH = 'pwdlib/data/'
+DATA_PATH = 'pwdtools_src/data/'
 
 # ! API functions
 

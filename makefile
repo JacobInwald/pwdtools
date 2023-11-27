@@ -4,13 +4,13 @@ DESTDIR ?= /usr/local/bin
 install:
 	@echo "Installing pwdtools..."
 	@pip3 install -r requirements.txt	
-	@sudo mkdir -p $(DESTDIR)/pwdlib
 	@sudo cp pwdtools.py $(DESTDIR)/pwdtools
-	@sudo cp -r pwdlib $(DESTDIR)
+	@sudo mkdir -p $(DESTDIR)/pwdtools_src
+	@sudo cp -r pwdtools_src $(DESTDIR)
 	@sudo chmod +x $(DESTDIR)/pwdtools
 	@echo "Installation Successful!"
 
 uninstall:
-	@sudo rm -rf $(DESTDIR)/pwdlib
+	@sudo rm -rf $(DESTDIR)/pwdtools_src
 	@sudo rm -f $(DESTDIR)/pwdtools
 	@echo "pwdtools has been removed"

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
-from pwdlib.pwdlib import *
+from pwdtools_src.pwdlib import *
 from os.path import isfile
 
 if len(sys.argv) == 1:
