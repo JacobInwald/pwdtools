@@ -8,8 +8,7 @@ from colorama import init, Fore, Back, Style
 from urllib3.exceptions import InsecureRequestWarning
 from itertools import permutations
 from nltk.corpus import words
-import nltk
-
+import nltk, math
 # ! Global Setup
 if words.words() == []:
     print("Downloading nltk words...")
@@ -319,7 +318,7 @@ def create_english_corpus(save:bool=True, regenerate:bool=False):
     # Remove words that are less than 4 letters long or contain non-alphabetic characters
     for d in dictionaries.values():
         for w in tqdm.tqdm(d):
-            if len(w) < 4 or \
+            if len(w) < 5 or \
                 not re.match('^[a-zA-Z]+$', w):
                 continue
             corpus.add(w.lower())
@@ -334,13 +333,13 @@ def create_english_corpus(save:bool=True, regenerate:bool=False):
     return corpus
 
 
-def permuted_dictionary_attack(hash:str,hash_type:str, n_size:int=3, s_size:int=1)->bool:
+def permuted_dictionary_attack(hash:str,hash_type:str, n_size:int=3, s_size:int=1):
     """
     Attempts to crack the password using a permuted dictionary attack.
     """
     corpus = create_english_corpus()
-    suffixes = gen_suffixes()
-    
+    suffixes = gen_suffixes(n_size, s_size)
+    print(len(suffixes))
     # Get hash function
     h = HASH_TYPES.get(hash_type)
     if not h: return False
@@ -355,8 +354,24 @@ def permuted_dictionary_attack(hash:str,hash_type:str, n_size:int=3, s_size:int=
     return False
 
 
-def brute_force_attack(hash:str,hash_type:str):
-    pass
+def brute_force_attack(hash:str,hash_type:str, upto:int=4):
+    
+    characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=[]\{\};:,.\\/<>?'
+    
+    # Get hash function
+    h = HASH_TYPES.get(hash_type)
+    if not h: return False
+    
+    total_number_passwords = sum([math.factorial(len(characters)) / math.factorial(len(characters) - (upto - i)) for i in range(upto)])
+
+    for i in range(upto+1):
+        print('Starting brute force attack with %d characters...' % i)
+        for w in tqdm.tqdm(permutations(characters, i), total=total_number_passwords): 
+            w = ''.join(w)
+            if h(w.encode('utf-8')).hexdigest() == hash:
+                    return w
+    
+    return False
 
 
 def pwd_crack(hash:str)->bool:
@@ -367,12 +382,21 @@ def pwd_crack(hash:str)->bool:
     if not hash_type:
         return False
     
+    # Brute Force attack
+    brute = brute_force_attack(hash, hash_type, 4)
+    if brute:
+        print(Style.BRIGHT + Fore.GREEN + "Light Brute Force Attack Successful. Password is: %s" % perms)
+        return brute
+    print(Style.BRIGHT + Fore.RED + "Light Brute Force Attack Failed. Could not crack password. :(")
+
+
     # Attempt to bust hash
     busted = search_hash_online(hash)
     if busted:
         print(Style.BRIGHT + Fore.GREEN + "Online Hash Busting Successful. Password is: %s" % busted)
         return busted
     print(Style.BRIGHT + Fore.RED + "Hash not found in online database. Attempting dictionary attack...")
+
 
     # Dictionary attack
     dictionary = dictionary_attack(hash, hash_type)
@@ -381,13 +405,20 @@ def pwd_crack(hash:str)->bool:
         return dictionary
     print(Style.BRIGHT + Fore.RED + "Dictionary Attack Failed. Attempting a permuted dictionary attack...")
 
+
     # Permuted dictionary attack
-    perms = permuted_dictionary_attack(hash, hash_type)
+    perms = permuted_dictionary_attack(hash, hash_type, 3, 1)
     if perms:
         print(Style.BRIGHT + Fore.GREEN + "Permuted Dictionary Attack Successful. Password is: %s" % perms)
         return perms
     print(Style.BRIGHT + Fore.RED + "Permuted Dictionary Attack Failed. Attempting a brute force attack...")
 
-    # TODO: brute force attack
+
+    # Brute Force attack
+    brute = brute_force_attack(hash, hash_type, 8)
+    if brute:
+        print(Style.BRIGHT + Fore.GREEN + "Heavy Brute Force Attack Successful. Password is: %s" % perms)
+        return brute
+    print(Style.BRIGHT + Fore.RED + "Heavy Brute Force Attack Failed. Could not crack password. :(")
 
     return False
