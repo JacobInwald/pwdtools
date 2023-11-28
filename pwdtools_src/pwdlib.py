@@ -480,12 +480,7 @@ def pwd_crack(hash:str)->bool:
     hash_type = get_hash_type(hash)
     if not hash_type:
         return False
-# Brute Force attack: n=6 takes 204:houres on a 64 core machine
-    brute = brute_force_attack_pool(hash, hash_type, 6, 1)
-    if brute:
-        print(Style.BRIGHT + Fore.GREEN + "Heavy Brute Force Attack Successful. Password is: %s" % brute)
-        return brute
-    print(Style.BRIGHT + Fore.RED + "Heavy Brute Force Attack Failed. Could not crack password. :(")
+
     # Attempt to bust hash
     busted = search_hash_online(hash)
     if busted:
@@ -511,7 +506,7 @@ def pwd_crack(hash:str)->bool:
 
 
     # Brute Force attack: n=6 takes 204:houres on a 64 core machine
-    brute = brute_force_attack_pool(hash, hash_type, 6)
+    brute = brute_force_attack_pool(hash, hash_type, 5)
     if brute:
         print(Style.BRIGHT + Fore.GREEN + "Heavy Brute Force Attack Successful. Password is: %s" % brute)
         return brute
