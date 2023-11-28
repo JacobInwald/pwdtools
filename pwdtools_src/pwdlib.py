@@ -482,7 +482,7 @@ def pwd_crack(hash:str)->bool:
         return False
     
     # Brute Force attack
-    brute = brute_force_attack_pool(hash, hash_type, 5)
+    brute = brute_force_attack_pool(hash, hash_type, 5, 1)
     if brute:
         print(Style.BRIGHT + Fore.GREEN + "Heavy Brute Force Attack Successful. Password is: %s" % brute)
         return brute
