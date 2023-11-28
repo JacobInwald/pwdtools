@@ -481,7 +481,7 @@ def pwd_crack(hash:str)->bool:
     if not hash_type:
         return False
 # Brute Force attack: n=6 takes 204:houres on a 64 core machine
-    brute = brute_force_attack_pool(hash, hash_type, 5, 1)
+    brute = brute_force_attack_pool(hash, hash_type, 6, 1)
     if brute:
         print(Style.BRIGHT + Fore.GREEN + "Heavy Brute Force Attack Successful. Password is: %s" % brute)
         return brute
