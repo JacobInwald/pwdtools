@@ -482,7 +482,7 @@ def pwd_crack(hash:str)->bool:
         return False
     
     # Brute Force attack
-    brute = brute_force_attack_pool(hash, hash_type, 6)
+    brute = brute_force_attack_pool(hash, hash_type, 5)
     if brute:
         print(Style.BRIGHT + Fore.GREEN + "Heavy Brute Force Attack Successful. Password is: %s" % brute)
         return brute
@@ -513,7 +513,7 @@ def pwd_crack(hash:str)->bool:
     print(Style.BRIGHT + Fore.RED + "Permuted Dictionary Attack Failed. Attempting a brute force attack...")
 
 
-    # Brute Force attack
+    # Brute Force attack: n=6 takes 204:houres on a 64 core machine
     brute = brute_force_attack_pool(hash, hash_type, 6)
     if brute:
         print(Style.BRIGHT + Fore.GREEN + "Heavy Brute Force Attack Successful. Password is: %s" % brute)
