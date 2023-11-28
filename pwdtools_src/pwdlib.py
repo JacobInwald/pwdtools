@@ -504,6 +504,8 @@ def brute_force_attack_pool(hash:str,hash_type:str, upto:int=4, n_threads:int=10
     # Get answer
     foundit.wait()
     quit.set()
+    time.sleep(3)
+
     print(q.empty())
     return q.get() if not q.empty() else False
 
