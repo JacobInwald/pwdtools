@@ -25,6 +25,7 @@ API_LIST = [None, None, None]
 HASH_TYPES = {'md5': md5, 'sha1': sha1, 'sha256': sha256, 'sha384': sha384, 'sha512': sha512}
 HASH_LENGTHS = {32: 'md5', 40: 'sha1', 64: 'sha256', 96: 'sha384', 128: 'sha512'}
 DATA_PATH = 'pwdtools_src/data/'
+CHARACTERS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=[]:,./\\<>?'
 
 # ! API functions
 
@@ -400,18 +401,16 @@ def permuted_dictionary_attack_pool(hash:str,hash_type:str,upgrade=True, n_threa
 
 
 def brute_force_attack_light(hash:str,hash_type:str, upto:int=4):
-    
-    characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890'
-    
+        
     # Get hash function
     h = HASH_TYPES.get(hash_type)
     if not h: return False
     
-    total_number_passwords = sum([math.factorial(len(characters)) / math.factorial(len(characters) - (upto - i)) for i in range(upto)])
+    total_number_passwords = sum([math.factorial(len(CHARACTERS)) / math.factorial(len(CHARACTERS) - (upto - i)) for i in range(upto)])
 
     for i in range(upto+1):
-        print('Starting brute force attack with %d characters...' % i)
-        for w in tqdm.tqdm(permutations(characters, i), total=total_number_passwords): 
+        print('Starting brute force attack with %d CHARACTERS...' % i)
+        for w in tqdm.tqdm(permutations(CHARACTERS, i), total=total_number_passwords): 
             w = ''.join(w)
             if h(w.encode('utf-8')).hexdigest() == hash:
                     return w
@@ -420,24 +419,90 @@ def brute_force_attack_light(hash:str,hash_type:str, upto:int=4):
 
 
 def brute_force_attack_heavy(hash:str,hash_type:str, upto:int=4):
-    
-    characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=[]:,./\\<>?'
-    
+        
     # Get hash function
     h = HASH_TYPES.get(hash_type)
     if not h: return False
     
-    total_number_passwords = sum([math.factorial(len(characters)) / math.factorial(len(characters) - (upto - i)) for i in range(upto)])
+    total_number_passwords = sum([math.factorial(len(CHARACTERS)) / math.factorial(len(CHARACTERS) - (upto - i)) for i in range(upto)])
 
     for i in range(upto+1):
-        print('Starting brute force attack with %d characters...' % i)
-        for w in tqdm.tqdm(permutations(characters, i), total=total_number_passwords): 
+        print('Starting brute force attack with %d CHARACTERS...' % i)
+        for w in tqdm.tqdm(permutations(CHARACTERS, i), total=total_number_passwords): 
             w = ''.join(w)
             if h(w.encode('utf-8')).hexdigest() == hash:
                     return w
     
     return False
 
+
+
+def next_permutation(COUNTER:int)->str:
+
+    w = ''
+
+    if COUNTER == 0:
+        return CHARACTERS[0]
+    elif COUNTER == len(CHARACTERS):
+        return CHARACTERS[0] + CHARACTERS[0]
+    
+    log = int(math.floor(math.log(COUNTER, len(CHARACTERS)))) 
+    l_prep = COUNTER - len(CHARACTERS)**(log-1)
+    length = int(math.floor(math.log(l_prep, len(CHARACTERS)))) 
+
+    new_character_index = COUNTER % len(CHARACTERS)
+    old_character_index = (COUNTER // len(CHARACTERS) - 1)
+
+    for i in range(length):
+        w = CHARACTERS[old_character_index % len(CHARACTERS)] + w
+        old_character_index = old_character_index // len(CHARACTERS) - 1
+        
+    w += CHARACTERS[new_character_index]
+    COUNTER += 1
+    return w
+
+
+def brute_force_kernel(hash:str, h:str, upto:int, num_threads:int, pid:int, quit, foundit, q):
+
+    for i in tqdm.tqdm(range(pid,upto+1, num_threads)):
+        w = next_permutation(i)
+        if quit.is_set():
+            return False
+        w = ''.join(w)
+        if h(w.encode('utf-8')).hexdigest() == hash:
+            q.put(w)
+            foundit.set()
+            return
+    return
+
+
+def brute_force_attack_pool(hash:str,hash_type:str, upto:int=4, n_threads:int=100):
+    # Get hash function
+    h = HASH_TYPES.get(hash_type)
+    if not h: return False
+
+    # Initialise key variables
+    n_threads = n_threads if n_threads < mp.cpu_count() else mp.cpu_count()
+    total_number_passwords = int(sum([math.factorial(len(CHARACTERS)) / math.factorial(len(CHARACTERS) - (upto - i)) for i in range(upto)]))
+
+    # Here for ensuring that program quits early if password is found
+    q = mp.Queue()
+    quit = mp.Event()
+    foundit = mp.Event()
+
+    # Start cores
+    for i in range(n_threads):
+        p = mp.Process(target=brute_force_kernel, args=(hash, h, total_number_passwords,
+                                                         n_threads, i,
+                                                         quit, foundit, q))
+        p.start()
+        time.sleep(0.5)
+
+    # Get answer
+    foundit.wait()
+    quit.set()
+    
+    return q.get() if not q.empty() else False
 
 
 def pwd_crack(hash:str)->bool:
@@ -489,3 +554,6 @@ def pwd_crack(hash:str)->bool:
 
     return False
 
+if __name__ == '__main__':
+    hash = to_hash('asdf', 'md5')
+    print(brute_force_attack_pool(hash, 'md5', 5))
