@@ -504,9 +504,8 @@ def brute_force_attack_pool(hash:str,hash_type:str, upto:int=4, n_threads:int=10
     # Get answer
     foundit.wait()
     quit.set()
-    time.sleep(3)
+    time.sleep(2)
 
-    print(q.empty())
     return q.get() if not q.empty() else False
 
 
@@ -558,7 +557,3 @@ def pwd_crack(hash:str)->bool:
     print(Style.BRIGHT + Fore.RED + "Heavy Brute Force Attack Failed. Could not crack password. :(")
 
     return False
-
-if __name__ == '__main__':
-    hash = to_hash('asdf', 'md5')
-    print(brute_force_attack_pool(hash, 'md5', 5, 10))
