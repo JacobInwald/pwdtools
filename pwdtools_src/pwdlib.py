@@ -374,7 +374,7 @@ def permuted_dictionary_attack_pool(hash:str,hash_type:str,upgrade=True, n_threa
         suffixes = gen_suffixes(4, 1)
     elif n_threads >= 64 and upgrade:
         print("Upgrading settings for high performance machine...")
-        suffixes = gen_suffixes(4, 2)
+        suffixes = gen_suffixes(5, 2)
     n_blocks = len(suffixes) // n_threads + 1
 
     # Sort out suffixes and blocks them for each core
@@ -396,8 +396,6 @@ def permuted_dictionary_attack_pool(hash:str,hash_type:str,upgrade=True, n_threa
     foundit.wait()
     quit.set()
     
-    if not q.empty():
-        print("asdf")
     return q.get() if not q.empty() else False
 
 
