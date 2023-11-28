@@ -388,52 +388,17 @@ def permuted_dictionary_attack_pool(hash:str,hash_type:str,upgrade=True, n_threa
     foundit = mp.Event()
 
     # Start cores
+    print("Starting up cores (this will take ~%d seconds for you)..." % (0.75*(n_threads)))
     for i in range(n_threads):
         p = mp.Process(target=permuted_dictionary_attack_pool_kernel, args=(hash, h, suffixes[i], corpus, quit, foundit, q))
         p.start()
         time.sleep(0.75)
-
+    print("Cores started, brute force attack starting...")
     # Get answer
     foundit.wait()
     quit.set()
     
     return q.get() if not q.empty() else False
-
-
-def brute_force_attack_light(hash:str,hash_type:str, upto:int=4):
-        
-    # Get hash function
-    h = HASH_TYPES.get(hash_type)
-    if not h: return False
-    
-    total_number_passwords = sum([math.factorial(len(CHARACTERS)) / math.factorial(len(CHARACTERS) - (upto - i)) for i in range(upto)])
-
-    for i in range(upto+1):
-        print('Starting brute force attack with %d CHARACTERS...' % i)
-        for w in tqdm.tqdm(permutations(CHARACTERS, i), total=total_number_passwords): 
-            w = ''.join(w)
-            if h(w.encode('utf-8')).hexdigest() == hash:
-                    return w
-    
-    return False
-
-
-def brute_force_attack_heavy(hash:str,hash_type:str, upto:int=4):
-        
-    # Get hash function
-    h = HASH_TYPES.get(hash_type)
-    if not h: return False
-    
-    total_number_passwords = sum([math.factorial(len(CHARACTERS)) / math.factorial(len(CHARACTERS) - (upto - i)) for i in range(upto)])
-
-    for i in range(upto+1):
-        print('Starting brute force attack with %d CHARACTERS...' % i)
-        for w in tqdm.tqdm(permutations(CHARACTERS, i), total=total_number_passwords): 
-            w = ''.join(w)
-            if h(w.encode('utf-8')).hexdigest() == hash:
-                    return w
-    
-    return False
 
 
 
@@ -464,7 +429,6 @@ def next_permutation(COUNTER:int)->str:
 
 def brute_force_kernel(hash:str, h:str, upto:int, n_threads:int, pid:int, quit, foundit, q):
     time.sleep(0.75*(n_threads-pid-1))
-    print("pid: %d, starting..." % (pid))
     for i in tqdm.tqdm(range(pid,upto+1, n_threads)):
         w = next_permutation(i)
         if quit.is_set():
@@ -493,7 +457,7 @@ def brute_force_attack_pool(hash:str,hash_type:str, upto:int=4, n_threads:int=10
     foundit = mp.Event()
 
     # Start cores
-    print("Starting up cores...")
+    print("Starting up cores (this will take ~%d seconds for you)..." % (0.75*(n_threads)))
     for i in range(n_threads):
         p = mp.Process(target=brute_force_kernel, args=(hash, h, total_number_passwords,
                                                          n_threads, i,
@@ -520,7 +484,7 @@ def pwd_crack(hash:str)->bool:
     # Brute Force attack
     brute = brute_force_attack_pool(hash, hash_type, 4)
     if brute:
-        print(Style.BRIGHT + Fore.GREEN + "Light Brute Force Attack Successful. Password is: %s" % perms)
+        print(Style.BRIGHT + Fore.GREEN + "Light Brute Force Attack Successful. Password is: %s" % brute)
         return brute
     print(Style.BRIGHT + Fore.RED + "Light Brute Force Attack Failed. Could not crack password. :(")
 
@@ -552,7 +516,7 @@ def pwd_crack(hash:str)->bool:
     # Brute Force attack
     brute = brute_force_attack_pool(hash, hash_type, 6)
     if brute:
-        print(Style.BRIGHT + Fore.GREEN + "Heavy Brute Force Attack Successful. Password is: %s" % perms)
+        print(Style.BRIGHT + Fore.GREEN + "Heavy Brute Force Attack Successful. Password is: %s" % brute)
         return brute
     print(Style.BRIGHT + Fore.RED + "Heavy Brute Force Attack Failed. Could not crack password. :(")
 
