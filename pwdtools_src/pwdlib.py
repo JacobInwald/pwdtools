@@ -480,14 +480,7 @@ def pwd_crack(hash:str)->bool:
     hash_type = get_hash_type(hash)
     if not hash_type:
         return False
-
-    # Brute Force attack
-    brute = brute_force_attack_pool(hash, hash_type, 4)
-    if brute:
-        print(Style.BRIGHT + Fore.GREEN + "Light Brute Force Attack Successful. Password is: %s" % brute)
-        return brute
-    print(Style.BRIGHT + Fore.RED + "Light Brute Force Attack Failed. Could not crack password. :(")
-
+    
 
     # Attempt to bust hash
     busted = search_hash_online(hash)
