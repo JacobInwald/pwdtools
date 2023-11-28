@@ -463,7 +463,7 @@ def next_permutation(COUNTER:int)->str:
 
 
 def brute_force_kernel(hash:str, h:str, upto:int, n_threads:int, pid:int, quit, foundit, q):
-    time.sleep(1*(n_threads-pid))
+    time.sleep(0.75*(n_threads-pid-1))
     print("pid: %d, starting..." % (pid))
     for i in tqdm.tqdm(range(pid,upto+1, n_threads)):
         w = next_permutation(i)
@@ -473,6 +473,7 @@ def brute_force_kernel(hash:str, h:str, upto:int, n_threads:int, pid:int, quit, 
         if h(w.encode('utf-8')).hexdigest() == hash:
             q.put(w)
             foundit.set()
+            quit.set()
             return
     return
 
@@ -502,9 +503,8 @@ def brute_force_attack_pool(hash:str,hash_type:str, upto:int=4, n_threads:int=10
     print("Cores started, brute force attack starting...")
     # Get answer
     foundit.wait()
-
     quit.set()
-    
+    print(q.empty())
     return q.get() if not q.empty() else False
 
 
@@ -559,4 +559,4 @@ def pwd_crack(hash:str)->bool:
 
 if __name__ == '__main__':
     hash = to_hash('asdf', 'md5')
-    print(brute_force_attack_pool(hash, 'md5', 5))
+    print(brute_force_attack_pool(hash, 'md5', 5, 10))
