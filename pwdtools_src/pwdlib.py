@@ -462,9 +462,9 @@ def next_permutation(COUNTER:int)->str:
     return w
 
 
-def brute_force_kernel(hash:str, h:str, upto:int, num_threads:int, pid:int, quit, foundit, q):
-
-    for i in tqdm.tqdm(range(pid,upto+1, num_threads)):
+def brute_force_kernel(hash:str, h:str, upto:int, n_threads:int, pid:int, quit, foundit, q):
+    time.sleep(0.5*(n_threads-pid))
+    for i in tqdm.tqdm(range(pid,upto+1, n_threads)):
         w = next_permutation(i)
         if quit.is_set():
             return False
