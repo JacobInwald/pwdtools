@@ -441,10 +441,9 @@ def pwd_crack(hash:str)->bool:
     hash_type = get_hash_type(hash)
     if not hash_type:
         return False
-    
 
     # Brute Force attack
-    brute = brute_force_attack_light(hash, hash_type, 5)
+    brute = brute_force_attack_light(hash, hash_type, 4)
     if brute:
         print(Style.BRIGHT + Fore.GREEN + "Light Brute Force Attack Successful. Password is: %s" % perms)
         return brute
@@ -476,7 +475,7 @@ def pwd_crack(hash:str)->bool:
 
 
     # Brute Force attack
-    brute = brute_force_attack_heavy(hash, hash_type, 4)
+    brute = brute_force_attack_heavy(hash, hash_type, 5)
     if brute:
         print(Style.BRIGHT + Fore.GREEN + "Heavy Brute Force Attack Successful. Password is: %s" % perms)
         return brute
