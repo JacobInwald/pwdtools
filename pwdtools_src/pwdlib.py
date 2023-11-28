@@ -497,9 +497,10 @@ def brute_force_attack_pool(hash:str,hash_type:str, upto:int=4, n_threads:int=10
                                                          quit, foundit, q))
         p.start()
         time.sleep(0.5)
-
+    time.sleep(0.5*(n_threads+1))
     # Get answer
     foundit.wait()
+
     quit.set()
     
     return q.get() if not q.empty() else False
@@ -514,7 +515,7 @@ def pwd_crack(hash:str)->bool:
         return False
 
     # Brute Force attack
-    brute = brute_force_attack_light(hash, hash_type, 4)
+    brute = brute_force_attack_pool(hash, hash_type, 4)
     if brute:
         print(Style.BRIGHT + Fore.GREEN + "Light Brute Force Attack Successful. Password is: %s" % perms)
         return brute
@@ -546,7 +547,7 @@ def pwd_crack(hash:str)->bool:
 
 
     # Brute Force attack
-    brute = brute_force_attack_heavy(hash, hash_type, 5)
+    brute = brute_force_attack_pool(hash, hash_type, 6)
     if brute:
         print(Style.BRIGHT + Fore.GREEN + "Heavy Brute Force Attack Successful. Password is: %s" % perms)
         return brute
