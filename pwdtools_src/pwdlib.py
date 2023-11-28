@@ -9,6 +9,11 @@ from urllib3.exceptions import InsecureRequestWarning
 from itertools import permutations
 from nltk.corpus import words
 import nltk, math
+import numpy as np
+import time
+from multiprocessing import Pool
+import multiprocessing as mp
+
 
 # ! Global Setup
 if words.words() == []:
@@ -334,30 +339,63 @@ def create_english_corpus(save:bool=True, regenerate:bool=False):
     return corpus
 
 
-def permuted_dictionary_attack(hash:str,hash_type:str, n_size:int=3, s_size:int=1):
+def permuted_dictionary_attack_pool_kernel(hash:str, h:str, suffixes:list, corpus:list,
+                                           quit, foundit, q):
     """
     Attempts to crack the password using a permuted dictionary attack.
     """
-    corpus = create_english_corpus()
-    suffixes = gen_suffixes(n_size, s_size)
-    print(len(suffixes))
+    for w in tqdm.tqdm(corpus):
+        if quit.is_set():
+            return False
+        for w in permute(w, suffixes):
+            if h((w).encode('utf-8')).hexdigest() == hash:
+                foundit.set()
+                q.put(w)
+                return   
+    return
+
+
+def permuted_dictionary_attack_pool(hash:str,hash_type:str,n_size:int=4, s_size:int=2, n_threads:int=100):
+    """
+    Attempts to crack the password using a permuted dictionary attack.
+    This is optimised to run on multiple CPU cores.
+    """
     # Get hash function
     h = HASH_TYPES.get(hash_type)
     if not h: return False
+
+    # Initialise key variables
+    suffixes = gen_suffixes(n_size, s_size)
+    corpus = create_english_corpus()
+    n_threads = n_threads if n_threads < mp.cpu_count() else mp.cpu_count()
+    print("Running on %d cores..." % n_threads)
+    n_blocks = len(suffixes) // n_threads + 1
+
+    # Sort out suffixes and blocks them for each core
+    suffixes = suffixes + ['' for i in range(n_blocks * n_threads - len(suffixes))]
+    suffixes = np.asarray(suffixes).reshape((n_threads, n_blocks))
     
-    # Start dictionary attack
-    print("Starting attack using corpus...")
-    for w in tqdm.tqdm(corpus):
-        for w in permute(w, suffixes):
-            if h(w.encode('utf-8')).hexdigest() == hash:
-                return w
-            
-    return False
+    # Here for ensuring that program quits early if password is found
+    q = mp.Queue()
+    quit = mp.Event()
+    foundit = mp.Event()
+
+    # Start cores
+    for i in range(n_threads):
+        p = mp.Process(target=permuted_dictionary_attack_pool_kernel, args=(hash, h, suffixes[i], corpus, quit, foundit, q))
+        p.start()
+        time.sleep(0.75)
+
+    # Get answer
+    foundit.wait()
+    quit.set()
+
+    return q.get() if not q.empty() else False
 
 
-def brute_force_attack(hash:str,hash_type:str, upto:int=4):
+def brute_force_attack_light(hash:str,hash_type:str, upto:int=4):
     
-    characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=[]\{\};:,.\\/<>?'
+    characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890'
     
     # Get hash function
     h = HASH_TYPES.get(hash_type)
@@ -375,6 +413,27 @@ def brute_force_attack(hash:str,hash_type:str, upto:int=4):
     return False
 
 
+def brute_force_attack_heavy(hash:str,hash_type:str, upto:int=4):
+    
+    characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-=[]:,./\\<>?'
+    
+    # Get hash function
+    h = HASH_TYPES.get(hash_type)
+    if not h: return False
+    
+    total_number_passwords = sum([math.factorial(len(characters)) / math.factorial(len(characters) - (upto - i)) for i in range(upto)])
+
+    for i in range(upto+1):
+        print('Starting brute force attack with %d characters...' % i)
+        for w in tqdm.tqdm(permutations(characters, i), total=total_number_passwords): 
+            w = ''.join(w)
+            if h(w.encode('utf-8')).hexdigest() == hash:
+                    return w
+    
+    return False
+
+
+
 def pwd_crack(hash:str)->bool:
     """
     Attempts to crack the hash to get the password.
@@ -383,8 +442,9 @@ def pwd_crack(hash:str)->bool:
     if not hash_type:
         return False
     
+
     # Brute Force attack
-    brute = brute_force_attack(hash, hash_type, 4)
+    brute = brute_force_attack_light(hash, hash_type, 5)
     if brute:
         print(Style.BRIGHT + Fore.GREEN + "Light Brute Force Attack Successful. Password is: %s" % perms)
         return brute
@@ -408,7 +468,7 @@ def pwd_crack(hash:str)->bool:
 
 
     # Permuted dictionary attack
-    perms = permuted_dictionary_attack(hash, hash_type, 3, 1)
+    perms = permuted_dictionary_attack_pool(hash, hash_type, 3, 1)
     if perms:
         print(Style.BRIGHT + Fore.GREEN + "Permuted Dictionary Attack Successful. Password is: %s" % perms)
         return perms
@@ -423,3 +483,4 @@ def pwd_crack(hash:str)->bool:
     print(Style.BRIGHT + Fore.RED + "Heavy Brute Force Attack Failed. Could not crack password. :(")
 
     return False
+
