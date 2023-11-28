@@ -463,7 +463,8 @@ def next_permutation(COUNTER:int)->str:
 
 
 def brute_force_kernel(hash:str, h:str, upto:int, n_threads:int, pid:int, quit, foundit, q):
-    time.sleep(0.5*(n_threads-pid))
+    time.sleep(1*(n_threads-pid))
+    print("pid: %d, starting..." % (pid))
     for i in tqdm.tqdm(range(pid,upto+1, n_threads)):
         w = next_permutation(i)
         if quit.is_set():
@@ -491,13 +492,14 @@ def brute_force_attack_pool(hash:str,hash_type:str, upto:int=4, n_threads:int=10
     foundit = mp.Event()
 
     # Start cores
+    print("Starting up cores...")
     for i in range(n_threads):
         p = mp.Process(target=brute_force_kernel, args=(hash, h, total_number_passwords,
                                                          n_threads, i,
                                                          quit, foundit, q))
         p.start()
-        time.sleep(0.5)
-    time.sleep(0.5*(n_threads+1))
+        time.sleep(0.75)
+    print("Cores started, brute force attack starting...")
     # Get answer
     foundit.wait()
 
