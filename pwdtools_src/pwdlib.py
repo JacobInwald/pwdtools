@@ -433,7 +433,7 @@ def brute_force_kernel(hash:str, h:str, upto:int, n_threads:int, pid:int, quit, 
         w = next_permutation(i)
         if quit.is_set():
             return False
-        w = ''.join(w)
+
         if h(w.encode('utf-8')).hexdigest() == hash:
             q.put(w)
             foundit.set()
