@@ -395,7 +395,7 @@ def permuted_dictionary_attack_pool(hash:str,hash_type:str,upgrade=True, n_threa
     # Get answer
     foundit.wait()
     quit.set()
-
+    
     if not q.empty():
         print("asdf")
     return q.get() if not q.empty() else False
@@ -450,14 +450,6 @@ def pwd_crack(hash:str)->bool:
     if not hash_type:
         return False
 
-
-    # Permuted dictionary attack
-    perms = permuted_dictionary_attack_pool(hash, hash_type)
-    if perms:
-        print(Style.BRIGHT + Fore.GREEN + "Permuted Dictionary Attack Successful. Password is: %s" % perms)
-        return perms
-    print(Style.BRIGHT + Fore.RED + "Permuted Dictionary Attack Failed. Attempting a brute force attack...")
-
     # Brute Force attack
     brute = brute_force_attack_light(hash, hash_type, 4)
     if brute:
@@ -480,6 +472,14 @@ def pwd_crack(hash:str)->bool:
         print(Style.BRIGHT + Fore.GREEN + "Dictionary Attack Successful. Password is: %s" % dictionary)
         return dictionary
     print(Style.BRIGHT + Fore.RED + "Dictionary Attack Failed. Attempting a permuted dictionary attack...")
+
+
+    # Permuted dictionary attack
+    perms = permuted_dictionary_attack_pool(hash, hash_type)
+    if perms:
+        print(Style.BRIGHT + Fore.GREEN + "Permuted Dictionary Attack Successful. Password is: %s" % perms)
+        return perms
+    print(Style.BRIGHT + Fore.RED + "Permuted Dictionary Attack Failed. Attempting a brute force attack...")
 
 
     # Brute Force attack
