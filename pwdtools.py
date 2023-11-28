@@ -41,7 +41,9 @@ if __name__ == '__main__':
 
     elif sys.argv[1] == '--busthash' or sys.argv[1] == '-bh':
         if len(sys.argv) == 3:
-            if not pwd_crack(sys.argv[2]): sys.exit('No hash given. Please specify a hash.')
+            pwd_crack(sys.argv[2])
+        elif len(sys.argv) == 4:
+            pwd_crack(sys.argv[2], sys.argv[3])
         else:
             sys.exit('No hash given. Please specify a hash.')
 
@@ -56,6 +58,10 @@ if __name__ == '__main__':
             -h, --hash          Hashes a string, given the string and hash type. 
             -s, --search        Check if a password has been leaked online.
             -bh, --busthash     Bust a hash, attempting to reverse the hashing procedure.
+                options: 
+                    -u          Automatically upgrade the settings to the hardest configurations
+                usage:          
+                                pwdtools -bh <options> <hash>
             -sh, --searchhash   Search for a hash in a database of hashes.
                                 Supported hash types: md5, sha1, sha256, sha384, sha512. 
             --help          Display this help message.

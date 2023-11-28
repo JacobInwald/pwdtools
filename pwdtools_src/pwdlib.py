@@ -355,7 +355,7 @@ def permuted_dictionary_attack_pool_kernel(hash:str, h:str, suffixes:list, corpu
     return
 
 
-def permuted_dictionary_attack_pool(hash:str,hash_type:str,n_size:int=4, s_size:int=2, n_threads:int=100):
+def permuted_dictionary_attack_pool(hash:str,hash_type:str,upgrade=True, n_threads:int=100):
     """
     Attempts to crack the password using a permuted dictionary attack.
     This is optimised to run on multiple CPU cores.
@@ -365,10 +365,16 @@ def permuted_dictionary_attack_pool(hash:str,hash_type:str,n_size:int=4, s_size:
     if not h: return False
 
     # Initialise key variables
-    suffixes = gen_suffixes(n_size, s_size)
+    suffixes = gen_suffixes(3, 1)
     corpus = create_english_corpus()
     n_threads = n_threads if n_threads < mp.cpu_count() else mp.cpu_count()
     print("Running on %d cores..." % n_threads)
+    if n_threads >= 32 and upgrade: 
+        print("Upgrading settings for high performance machine...")
+        suffixes = gen_suffixes(4, 1)
+    elif n_threads >= 64 and upgrade:
+        print("Upgrading settings for high performance machine...")
+        suffixes = gen_suffixes(4, 2)
     n_blocks = len(suffixes) // n_threads + 1
 
     # Sort out suffixes and blocks them for each core
@@ -390,6 +396,8 @@ def permuted_dictionary_attack_pool(hash:str,hash_type:str,n_size:int=4, s_size:
     foundit.wait()
     quit.set()
 
+    if not q.empty():
+        print("asdf")
     return q.get() if not q.empty() else False
 
 
@@ -442,6 +450,14 @@ def pwd_crack(hash:str)->bool:
     if not hash_type:
         return False
 
+
+    # Permuted dictionary attack
+    perms = permuted_dictionary_attack_pool(hash, hash_type)
+    if perms:
+        print(Style.BRIGHT + Fore.GREEN + "Permuted Dictionary Attack Successful. Password is: %s" % perms)
+        return perms
+    print(Style.BRIGHT + Fore.RED + "Permuted Dictionary Attack Failed. Attempting a brute force attack...")
+
     # Brute Force attack
     brute = brute_force_attack_light(hash, hash_type, 4)
     if brute:
@@ -464,14 +480,6 @@ def pwd_crack(hash:str)->bool:
         print(Style.BRIGHT + Fore.GREEN + "Dictionary Attack Successful. Password is: %s" % dictionary)
         return dictionary
     print(Style.BRIGHT + Fore.RED + "Dictionary Attack Failed. Attempting a permuted dictionary attack...")
-
-
-    # Permuted dictionary attack
-    perms = permuted_dictionary_attack_pool(hash, hash_type, 3, 1)
-    if perms:
-        print(Style.BRIGHT + Fore.GREEN + "Permuted Dictionary Attack Successful. Password is: %s" % perms)
-        return perms
-    print(Style.BRIGHT + Fore.RED + "Permuted Dictionary Attack Failed. Attempting a brute force attack...")
 
 
     # Brute Force attack
